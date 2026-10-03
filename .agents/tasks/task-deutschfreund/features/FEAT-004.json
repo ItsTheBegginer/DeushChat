@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Words from Life page (pages/3_Words_from_Life.py) and README.md. Depends on FEAT-001 (llm.py, db.py). Independent of FEAT-003 (no shared state). This FEAT also verifies the full app end-to-end and cleans up any integration issues found.",
+  "status": "completed",
+  "steps": [
+    "Create /Users/family/Documents/Deushchat/pages/3_Words_from_Life.py. Imports: streamlit as st, from core import db, llm, from core.db import get_or_create_db. Call get_or_create_db() at top.",
+    "Render st.title('Words from Life 📝') and a brief subtitle explaining the feature.",
+    "Word lookup form: st.text_input('Paste a German word or phrase you encountered:') with a Submit button (or use st.form). On submit with non-empty input: (a) check llm.check_ollama_running(), show st.error and st.stop() if False. (b) call llm.get_word_lookup(word). (c) Display result in st.success() or st.container() showing: word + gender badge, English meaning, German example sentence, English translation of example. (d) Call db.save_word(word, meaning, gender, example_de, example_en). (e) Show st.success('Added to your deck!').",
+    "Vocabulary list section: st.subheader('Your vocabulary list'). Call db.get_all_words(). If empty: show st.info('No words added yet.'). If not empty: render each word as a styled card using st.expander or st.container — show word (bold), gender, meaning, example. Optionally use st.columns for a more compact layout.",
+    "Create /Users/family/Documents/Deushchat/README.md with sections: (1) What is Deutschfreund, (2) Prerequisites (macOS, Python 3.11+, pip), (3) Install steps with exact shell commands for Ollama install + pull + serve + pip install + streamlit run, (4) Pages overview (4 bullet points), (5) Troubleshooting: 'Ollama not running' error and fix, DB location at ~/.deutschfreund/deutschfreund.db.",
+    "Run the full smoke test suite to confirm all modules import cleanly: python3 -c from data.scenarios, from core.db, from core.prompts, from core.llm. Fix any import errors found across all files.",
+    "Start streamlit run app.py in headless mode, confirm it serves on :8501 without errors, stop it."
+  ],
+  "acceptance_criteria": [
+    "streamlit run app.py, navigate to Words from Life — text input renders, no import errors",
+    "Typing a word and submitting calls LLM (or shows clear Ollama error) without crashing",
+    "After a successful lookup, the word appears in the vocabulary list below",
+    "README.md exists and contains at least the install commands (ollama pull gemma2:2b, pip3 install -r requirements.txt, streamlit run app.py)",
+    "All four smoke tests pass: data.scenarios, core.db, core.prompts, core.llm importable from project root"
+  ],
+  "verification": [
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from data.scenarios import SCENARIOS; assert len(SCENARIOS)==8; print(\"scenarios ok\")'",
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from core.db import get_or_create_db; get_or_create_db(); print(\"db ok\")'",
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from core.prompts import build_system_prompt; print(\"prompts ok\")'",
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from core.llm import check_ollama_running; print(\"llm ok\")'",
+    "cd /Users/family/Documents/Deushchat && streamlit run app.py --server.headless true --server.port 8502 & sleep 6 && curl -sf http://localhost:8502 > /dev/null && echo 'app serves ok' && pkill -f 'streamlit run app.py' || (pkill -f 'streamlit run app.py'; echo 'app start check done')"
+  ],
+  "blocked_reason": null,
+  "findings": "pages/3_Words_from_Life.py created: replaces FEAT-002 stub. Uses st.form('word_lookup_form', clear_on_submit=True) for the word input. Ollama guard in place before llm.get_word_lookup(). Result rendered as markdown card with flag emoji, gender badge, meaning, and example_de → example_en. db.save_word() called immediately after display; st.success confirmation shown. Vocabulary list rendered via db.get_all_words() using st.expander per word (collapsed by default) showing the back field from the cards table. README.md created with all required sections: prerequisites, four-step install (ollama install + serve + pull gemma2:2b, pip3 install -r requirements.txt, streamlit run app.py), pages overview, and troubleshooting for Ollama-not-running and DB reset. All four smoke tests pass. App serves headless on port 8502 without errors. Committed: feat: FEAT-004 words from life page and readme (c6e2e35)."
+}

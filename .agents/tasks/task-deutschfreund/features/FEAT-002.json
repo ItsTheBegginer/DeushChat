@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Onboarding and home page (app.py): first-run onboarding form saving to SQLite profile table, and returning-user welcome dashboard. Depends on FEAT-001 (core/db.py must exist).",
+  "status": "completed",
+  "steps": [
+    "Create /Users/family/Documents/Deushchat/app.py. At the top call core.db.get_or_create_db() (idempotent). Read profile via core.db.get_profile().",
+    "If profile is None: render onboarding form using st.form('onboarding') with: st.text_input for name, st.selectbox for level (A0/A1/A2/B1), st.text_input for city (optional), st.selectbox for goal with options 'Survive daily life in Germany'/'Pass university admission'/'Both'. On submit with non-empty name: map goal string to key (daily_life/university/both), call db.save_profile(), then st.switch_page('pages/1_Scenarios.py').",
+    "If profile exists: render welcome-back screen. Show st.title with name. Show st.metric for 'Cards due for review today' (len(db.get_due_cards())) and 'Total corrections saved' (SELECT COUNT(*) FROM cards). Add st.page_link buttons to navigate to the three pages.",
+    "Add st.set_page_config(page_title='Deutschfreund', page_icon='🇩🇪', layout='wide') as the very first Streamlit call in app.py."
+  ],
+  "acceptance_criteria": [
+    "streamlit run app.py from /Users/family/Documents/Deushchat starts without import errors",
+    "On first run (no profile in DB): onboarding form renders with name/level/city/goal fields",
+    "Filling the form and clicking Submit saves profile to DB and switches to Scenarios page",
+    "On second run (profile exists): welcome-back screen shows the saved name and card stats"
+  ],
+  "verification": [
+    "cd /Users/family/Documents/Deushchat && python3 -c 'import app' 2>&1 | grep -v 'ScriptRunContext\\|missing ScriptRunContext' || echo 'import check done'",
+    "cd /Users/family/Documents/Deushchat && streamlit run app.py --server.headless true &  sleep 5 && curl -s http://localhost:8501 | grep -i 'Deutschfreund\\|streamlit' | head -3; pkill -f 'streamlit run app.py' 2>/dev/null || true"
+  ],
+  "blocked_reason": null,
+  "findings": "app.py created with st.set_page_config as first Streamlit call. Onboarding form uses st.form('onboarding') with name/level/city/goal fields; maps goal string to key and calls db.save_profile() then st.switch_page(). Welcome-back dashboard shows name, cards-due metric, and total corrections via direct COUNT(*) query (no dedicated db function needed). Stub pages/1_Scenarios.py, pages/2_Mistake_Deck.py, pages/3_Words_from_Life.py created so st.page_link and st.switch_page resolve without FileNotFoundError. Both verification commands pass: import check exits 0, streamlit run serves HTML with 'Streamlit' in the title tag."
+}

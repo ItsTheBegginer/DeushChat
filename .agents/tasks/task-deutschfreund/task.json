@@ -1,0 +1,7 @@
+{
+  "task_id": "task-deutschfreund",
+  "task_description": "Build Deutschfreund: a local, offline German tutor Streamlit app using gemma2:2b via Ollama. Features: onboarding profile, scenario roleplay with correction panel, SM-2 flashcard deck, and Words from Life vocab lookup. Storage in SQLite. No external APIs.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

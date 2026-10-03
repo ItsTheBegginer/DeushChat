@@ -1,0 +1,29 @@
+{
+  "project_type": "Streamlit multi-page app, fully local/offline",
+  "language": "Python 3.14.7",
+  "build_system": "no build step — run directly with: streamlit run app.py (from /Users/family/Documents/Deushchat)",
+  "test_framework": "none configured — use manual smoke tests: python3 -c 'from core.db import get_or_create_db; ...' from project root",
+  "build_command": "streamlit run app.py",
+  "test_command": "python3 -c \"from core.db import get_or_create_db; get_or_create_db(); print('DB ok')\" && python3 -c \"from data.scenarios import SCENARIOS; assert len(SCENARIOS)==8; print('8 scenarios ok')\" && python3 -c \"from core.prompts import build_system_prompt; print('prompts ok')\" && python3 -c \"from core.llm import check_ollama_running; print('llm ok')\"",
+  "verification_instructions": "Run from /Users/family/Documents/Deushchat: (1) python3 smoke tests per module, (2) streamlit run app.py and manually verify onboarding form renders, (3) confirm no import errors on startup",
+  "snapshot_or_generated_files": "~/.deutschfreund/deutschfreund.db — SQLite file created at runtime in user home. No checked-in generated files.",
+  "environment_constraints": "Ollama must be running (ollama serve) for LLM features to work. Ollama not installed yet — needs: curl -fsSL https://ollama.com/install.sh | sh && ollama pull gemma2:2b. Python at /Library/Frameworks/Python.framework/Versions/3.14/bin/python3. Streamlit 1.64.0 already installed. ollama Python package NOT installed — pip3 install ollama>=0.1.8. DB path: ~/.deutschfreund/deutschfreund.db",
+  "contribution_requirements": "All DB queries use parameterized ? placeholders. No side effects at module import time (no streamlit calls at top level of core/ or data/ modules). st.session_state used for all per-session state. check_ollama_running() guard before every LLM call in UI layer.",
+  "key_patterns": "Streamlit pages/ directory convention: files prefixed 1_, 2_, 3_ for sidebar order. st.switch_page() for redirect after onboarding. st.chat_message() for chat bubbles. st.expander() for correction panel. st.form() for onboarding. sqlite3 'with conn:' context manager pattern. ollama.chat() with stream=False for synchronous calls. JSON fence-stripping: re.sub(r'^```(?:json)?\\s*|\\s*```$', '', raw.strip(), flags=re.MULTILINE).",
+  "relevant_files": [
+    "/Users/family/Documents/Deushchat/app.py",
+    "/Users/family/Documents/Deushchat/pages/1_Scenarios.py",
+    "/Users/family/Documents/Deushchat/pages/2_Mistake_Deck.py",
+    "/Users/family/Documents/Deushchat/pages/3_Words_from_Life.py",
+    "/Users/family/Documents/Deushchat/core/__init__.py",
+    "/Users/family/Documents/Deushchat/core/db.py",
+    "/Users/family/Documents/Deushchat/core/llm.py",
+    "/Users/family/Documents/Deushchat/core/prompts.py",
+    "/Users/family/Documents/Deushchat/data/__init__.py",
+    "/Users/family/Documents/Deushchat/data/scenarios.py",
+    "/Users/family/Documents/Deushchat/requirements.txt",
+    "/Users/family/Documents/Deushchat/README.md",
+    "/Users/family/Documents/Deushchat/.agents/tasks/plan.md"
+  ],
+  "directory_structure": "/ = project root (run streamlit run app.py from here); /pages/ = Streamlit multi-page files (auto-discovered); /core/ = Python package for DB, LLM, prompts; /data/ = Python package for static scenario data; /.agents/tasks/ = planning artifacts (never committed)"
+}

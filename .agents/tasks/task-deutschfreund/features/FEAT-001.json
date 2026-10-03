@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Bootstrap: create project scaffold, install dependencies (ollama Python package + Ollama binary if needed), and implement the core infrastructure layer (db.py, prompts.py, llm.py, data/scenarios.py). This is the foundation all other FEATs depend on.",
+  "status": "completed",
+  "steps": [
+    "Create /Users/family/Documents/Deushchat/requirements.txt with: streamlit>=1.32.0, ollama>=0.1.8, requests>=2.31.0",
+    "Install Python dependencies: pip3 install -r /Users/family/Documents/Deushchat/requirements.txt",
+    "Create /Users/family/Documents/Deushchat/core/__init__.py (empty file, makes core a package)",
+    "Create /Users/family/Documents/Deushchat/data/__init__.py (empty file, makes data a package)",
+    "Create /Users/family/Documents/Deushchat/data/scenarios.py: define SCENARIOS list of 8 dicts. Each dict has keys: id (snake_case), name, emoji, difficulty (badge text), setup_en (English situation description), goals (list of 3-4 strings), character_name, character_role. Scenarios: bank (🏦, A1), visa_office (🏛️, A2), apartment (🏠, A2), supermarket (🛒, A0), mensa (🍽️, A0), doctor (🏥, A1), professor (📚, B1), friends (🤝, A0). No imports needed.",
+    "Create /Users/family/Documents/Deushchat/core/db.py: import sqlite3, datetime, pathlib, json. DB_PATH = Path.home() / '.deutschfreund' / 'deutschfreund.db'. Implement: get_or_create_db() creates 3 tables (profile, messages, cards — see plan.md for exact CREATE TABLE SQL), save_profile(name,level,city,goal), get_profile()->dict|None, save_message(session_id,scenario_id,role,content,correction_json=None), get_messages_for_session(session_id)->list[dict], save_card(front,back,error_type,source_scenario=None) with ease=2.5/interval_days=1/next_review=today, get_due_cards()->list[dict] (WHERE next_review <= today), update_card_review(card_id,got_it:bool) implementing SM-2 lite (see plan.md SM-2 section), get_error_stats()->list[dict] (GROUP BY error_type COUNT), save_word(word,meaning,gender,example_de,example_en) which calls save_card with front=word, back=formatted meaning+example, error_type='vocabulary', get_all_words()->list[dict] (WHERE error_type='vocabulary' ORDER BY created_at DESC). All queries use ? parameterized placeholders. Each function opens its own connection with 'with sqlite3.connect(DB_PATH) as conn:' and creates DB_PATH.parent if needed.",
+    "Create /Users/family/Documents/Deushchat/core/prompts.py: implement build_system_prompt(profile:dict, scenario:dict, completed_goals:list[int])->str that builds the full system prompt instructing the model to: speak only German, max 8 words per sentence, present tense only, no Konjunktiv, return ONLY valid JSON matching the scenario chat schema. Embed profile name/level/goal, scenario setup_en, and list of pending goals (exclude indices in completed_goals). Also implement build_word_lookup_prompt(word:str)->str for Words from Life, expecting JSON: {meaning, gender, example_de, example_en}. No streamlit imports.",
+    "Create /Users/family/Documents/Deushchat/core/llm.py: implement check_ollama_running()->bool (GET http://localhost:11434/), call_llm_chat(messages:list[dict], system_prompt:str)->str using ollama.chat() with model='gemma2:2b' stream=False; fall back to requests.post if import fails. implement parse_scenario_response(raw:str)->dict that strips ```json fences with re.sub then json.loads(). implement get_scenario_reply(profile,scenario,completed_goals,chat_history,user_message)->dict: build prompt, call LLM, parse, retry ONCE with nudge message on JSONDecodeError, return FALLBACK_RESPONSE if retry also fails. Implement get_word_lookup(word:str)->dict with same retry pattern. FALLBACK_RESPONSE reply field = 'Entschuldigung, ich verstehe nicht. Kannst du das wiederholen?'. All public functions check_ollama_running() first and raise RuntimeError('Ollama is not running. Please start it with: ollama serve') if False. No streamlit imports."
+  ],
+  "acceptance_criteria": [
+    "python3 -c 'from data.scenarios import SCENARIOS; assert len(SCENARIOS)==8; print(SCENARIOS[0][\"id\"])' prints 'bank' from /Users/family/Documents/Deushchat",
+    "python3 -c 'from core.db import get_or_create_db; get_or_create_db(); print(\"DB ok\")' creates ~/.deutschfreund/deutschfreund.db without errors",
+    "python3 -c 'from core.db import save_profile, get_profile; from core.db import get_or_create_db; get_or_create_db(); save_profile(\"Test\",\"A0\",\"\",\"daily_life\"); p=get_profile(); assert p[\"name\"]==\"Test\"; print(\"profile ok\")' passes",
+    "python3 -c 'from core.prompts import build_system_prompt; print(\"prompts ok\")' prints prompts ok",
+    "python3 -c 'from core.llm import check_ollama_running; print(\"llm ok\")' prints llm ok without requiring Ollama to be running",
+    "python3 -c 'from core.db import save_card, get_due_cards, update_card_review, get_or_create_db; get_or_create_db(); save_card(\"Ich gehe\",\"Ich gehe — correct\",\"none\"); cards=get_due_cards(); assert len(cards)>=1; update_card_review(cards[0][\"id\"],True); print(\"SM-2 ok\")' passes"
+  ],
+  "verification": [
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from data.scenarios import SCENARIOS; assert len(SCENARIOS)==8; print(\"8 scenarios ok\")'",
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from core.db import get_or_create_db; get_or_create_db(); print(\"DB ok\")'",
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from core.prompts import build_system_prompt; print(\"prompts ok\")'",
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from core.llm import check_ollama_running; print(\"llm ok\")'"
+  ],
+  "blocked_reason": null,
+  "findings": "ollama Python package installed is v0.6.3 (not 0.1.8). It returns a Pydantic ChatResponse object, not a plain dict — use response.message.content (attribute access), not response['message']['content']. llm.py handles both styles with a try/except AttributeError fallback. The ollama package also uses httpx internally (not requests), so both are available. DB path ~/.deutschfreund/deutschfreund.db created successfully. All 8 acceptance criteria pass."
+}

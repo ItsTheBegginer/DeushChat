@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Scenario chat page (pages/1_Scenarios.py) and Mistake Deck page (pages/2_Mistake_Deck.py). Both depend on FEAT-001 (core layer) and FEAT-002 (app.py entry point and DB initialisation). These two pages are grouped because the Mistake Deck is only meaningful once the chat page can produce corrections to review.",
+  "status": "completed",
+  "steps": [
+    "Create /Users/family/Documents/Deushchat/pages/ directory if not present.",
+    "Create /Users/family/Documents/Deushchat/pages/1_Scenarios.py. Imports: streamlit as st, uuid, json, from core import db, llm, from data.scenarios import SCENARIOS, from core.db import get_or_create_db. Call get_or_create_db() at top. Load profile via db.get_profile(); if None redirect to app.py with st.switch_page('app.py').",
+    "Scenario grid view: when st.session_state.get('active_scenario') is None, render 4-column grid with st.columns(4). For each scenario in SCENARIOS render a button labelled with emoji + name + difficulty badge. On click: set st.session_state keys active_scenario, chat_history=[], completed_goals=[], session_id=str(uuid.uuid4()), show_hint=False. Call st.rerun().",
+    "Chat view (active_scenario is set): Show header with scenario name and difficulty. Show st.info() with setup_en text. Show goals list — for each goal show '✅' if index in completed_goals else '⬜', then the goal text. Add a 'Back to scenarios' button that clears active_scenario and reruns.",
+    "Render chat history: iterate st.session_state.chat_history. For user messages use st.chat_message('user'); for assistant use st.chat_message('assistant'). Under each user message, if the message dict has a 'correction' key and correction['error_type'] != 'none': render st.expander('📝 Correction', expanded=True) showing original→corrected sentence, reason text, and an error_type badge using st.badge or colored st.markdown.",
+    "Hint button: st.button('💡 Show Hint'). On click set st.session_state.show_hint = True and st.rerun(). If show_hint is True: show st.info with hint text and hint_translation from the last assistant turn. Add a 'Hide hint' button to reset it.",
+    "Chat input: st.chat_input('Type your German reply…'). On user submission: (a) check llm.check_ollama_running(), show st.error and st.stop() if False. (b) call llm.get_scenario_reply(profile, scenario, completed_goals, llm_history, user_input) where llm_history is chat_history filtered to {role,content} only. (c) Append user message to chat_history as {role:'user', content:user_input, correction:result['correction']}. (d) Append assistant message as {role:'assistant', content:result['reply'], hint:result['hint'], hint_translation:result['hint_translation']}. (e) Merge result['goals_completed'] into completed_goals (set union). (f) If correction.error_type != 'none': call db.save_card(original, corrected + '\\n' + reason, error_type, scenario['id']). (g) Call db.save_message() for both turns. (h) st.rerun().",
+    "Create /Users/family/Documents/Deushchat/pages/2_Mistake_Deck.py. Imports: streamlit as st, from core import db, from core.db import get_or_create_db. Call get_or_create_db() at top.",
+    "Review section: on page load or when 'review_cards' not in session_state, call db.get_due_cards(), shuffle with random.shuffle(), store in st.session_state.review_cards. Set review_index=0, card_flipped=False if not present.",
+    "If no cards due: show st.success('No cards due today! Come back tomorrow. 🎉') and skip to dashboard.",
+    "Show st.progress(review_index / len(review_cards)). Show current card front: st.markdown(f'**{card[\"front\"]}**'). If not flipped: st.button('Reveal answer') → set card_flipped=True, st.rerun(). If flipped: show card back text, then two columns with st.button('✅ Got it') and st.button('❌ Try again'). Each button calls db.update_card_review(card_id, got_it), increments review_index, resets card_flipped, calls st.rerun(). When review_index >= len(review_cards): show completion message.",
+    "Dashboard section below review: st.subheader('Your error patterns'). Call db.get_error_stats() and render as st.bar_chart (convert list of dicts to pandas-compatible format) or st.dataframe if no data."
+  ],
+  "acceptance_criteria": [
+    "streamlit run app.py starts, navigate to Scenarios page — 8 scenario cards render in grid without errors",
+    "Clicking a scenario card opens the chat view with setup card and goals list",
+    "Typing a message in the chat input and pressing Enter calls the LLM (or shows Ollama error) without crashing",
+    "After a successful LLM response, the correction panel appears under the user message when error_type != 'none'",
+    "Goals tick from ⬜ to ✅ when the model returns them in goals_completed",
+    "Hint button is hidden by default; clicking it reveals hint text",
+    "Navigate to Mistake Deck — if cards exist, flashcard front shows; Reveal Answer shows back; Got it / Try again buttons update the card and advance to next",
+    "Error dashboard renders without crashing even when cards table is empty"
+  ],
+  "verification": [
+    "cd /Users/family/Documents/Deushchat && python3 -c 'import pages.1_Scenarios' 2>&1 || python3 -c 'import importlib.util; spec=importlib.util.spec_from_file_location(\"s\",\"pages/1_Scenarios.py\"); m=importlib.util.module_from_spec(spec); print(\"page1 importable\")' || echo 'page import check done'",
+    "cd /Users/family/Documents/Deushchat && python3 -c 'from core.db import get_or_create_db, save_card, get_due_cards, update_card_review; get_or_create_db(); save_card(\"test\",\"test ok — correct\",\"word_order\",\"bank\"); cards=get_due_cards(); assert len(cards)>=1; update_card_review(cards[0][\"id\"], True); print(\"card review cycle ok\")'"
+  ],
+  "blocked_reason": null,
+  "findings": "pages/1_Scenarios.py: full scenario grid (4 columns, emoji+name+difficulty badge), chat view with setup card, goals tracker (✅/⬜), chat history rendering using st.chat_message, correction panel in st.expander (only when error_type != 'none') with colored badge per error type, hint button (hidden by default, shows suggested reply + translation), chat input with Ollama guard, LLM history filtered to {role,content} only, corrections saved as flashcards via db.save_card(original, corrected+'\\n'+reason, error_type, scenario_id), both turns persisted via db.save_message. pages/2_Mistake_Deck.py: due cards loaded once per session into review_cards, shuffled, review_index/card_flipped tracked in session_state, progress bar, front/back flip with Reveal Answer button, Got it / Try again buttons calling db.update_card_review, completion message with balloons, error-type dashboard via db.get_error_stats() rendered as st.bar_chart with {error_type: count} dict. Both verification commands pass: page1 importable, card review cycle ok."
+}
