@@ -1,4 +1,4 @@
-# Deutschfreund 🇩🇪
+# DeuschChat 🇩🇪
 
 A local, offline-capable German practice partner built for one student preparing to move to Germany. It runs entirely on your own laptop — no subscription, no cloud, no data leaving your machine.
 
