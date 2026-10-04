@@ -49,6 +49,12 @@ def get_or_create_db() -> None:
                 created_at      TEXT    NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_stats (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
         conn.commit()
 
 
@@ -227,3 +233,124 @@ def get_all_words() -> list[dict]:
             "SELECT * FROM cards WHERE error_type = 'vocabulary' ORDER BY created_at DESC",
         )
         return [dict(row) for row in cur.fetchall()]
+
+
+def get_all_cards() -> list[dict]:
+    """Return all cards ordered by created_at DESC."""
+    _ensure_dir()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            "SELECT * FROM cards ORDER BY created_at DESC",
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def get_due_cards_by_type(error_type: str) -> list[dict]:
+    """Return due cards (next_review <= today) filtered by error_type."""
+    _ensure_dir()
+    today = date.today().isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            "SELECT * FROM cards WHERE next_review <= ? AND error_type = ? ORDER BY next_review ASC",
+            (today, error_type),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def get_due_counts_by_type() -> dict:
+    """Return {error_type: count} for cards due today."""
+    _ensure_dir()
+    today = date.today().isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cur = conn.execute(
+            "SELECT error_type, COUNT(*) AS cnt FROM cards WHERE next_review <= ? GROUP BY error_type",
+            (today,),
+        )
+        return {row["error_type"]: row["cnt"] for row in cur.fetchall()}
+
+
+def get_card_stats() -> dict:
+    """Return total, mastered, and total_reviewed_today card counts."""
+    _ensure_dir()
+    today = date.today().isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute("SELECT COUNT(*) FROM cards")
+        total = cur.fetchone()[0]
+
+        cur = conn.execute(
+            "SELECT COUNT(*) FROM cards WHERE ease >= 2.8 AND interval_days >= 7",
+        )
+        mastered = cur.fetchone()[0]
+
+        # Cards reviewed today have next_review > today (rescheduled into the future)
+        cur = conn.execute(
+            "SELECT COUNT(*) FROM cards WHERE next_review > ?",
+            (today,),
+        )
+        total_reviewed_today = cur.fetchone()[0]
+
+    return {
+        "total": total,
+        "mastered": mastered,
+        "total_reviewed_today": total_reviewed_today,
+    }
+
+
+def update_streak() -> None:
+    """Upsert streak info in user_stats. Increments if last review was yesterday, resets otherwise."""
+    _ensure_dir()
+    today = date.today()
+    today_str = today.isoformat()
+    yesterday_str = (today - timedelta(days=1)).isoformat()
+
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute(
+            "SELECT value FROM user_stats WHERE key = 'last_review_date'",
+        )
+        row = cur.fetchone()
+
+        if row is None:
+            # First ever review
+            new_streak = 1
+        else:
+            last_date = row[0]
+            if last_date == yesterday_str:
+                cur2 = conn.execute(
+                    "SELECT value FROM user_stats WHERE key = 'current_streak'",
+                )
+                streak_row = cur2.fetchone()
+                new_streak = (int(streak_row[0]) if streak_row else 0) + 1
+            elif last_date == today_str:
+                # Already updated today — keep current streak
+                cur2 = conn.execute(
+                    "SELECT value FROM user_stats WHERE key = 'current_streak'",
+                )
+                streak_row = cur2.fetchone()
+                new_streak = int(streak_row[0]) if streak_row else 1
+            else:
+                # Gap in review — reset streak
+                new_streak = 1
+
+        conn.execute(
+            "INSERT OR REPLACE INTO user_stats (key, value) VALUES ('last_review_date', ?)",
+            (today_str,),
+        )
+        conn.execute(
+            "INSERT OR REPLACE INTO user_stats (key, value) VALUES ('current_streak', ?)",
+            (str(new_streak),),
+        )
+        conn.commit()
+
+
+def get_streak() -> int:
+    """Return the current review streak (days), 0 if no data."""
+    _ensure_dir()
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.execute(
+            "SELECT value FROM user_stats WHERE key = 'current_streak'",
+        )
+        row = cur.fetchone()
+        return int(row[0]) if row else 0
