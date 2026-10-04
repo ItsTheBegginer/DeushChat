@@ -1,7 +1,7 @@
 import streamlit as st
 
 # st.set_page_config must be the FIRST Streamlit call
-st.set_page_config(page_title="Deutschfreund", page_icon="🇩🇪", layout="wide")
+st.set_page_config(page_title="DeushChat", page_icon="🇩🇪", layout="wide")
 
 import sqlite3
 from pathlib import Path
