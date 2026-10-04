@@ -33,6 +33,8 @@ if "got_it_count" not in st.session_state:
     st.session_state.got_it_count = 0
 if "try_again_count" not in st.session_state:
     st.session_state.try_again_count = 0
+if "streak_updated" not in st.session_state:
+    st.session_state.streak_updated = False
 
 # ─────────────────────────────────────────────────────────────────
 # Feature 1 — Streak tracker
@@ -53,10 +55,11 @@ if total_reviewed_session > 0:
 else:
     accuracy_str = "—"
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("📚 Total cards", stats["total"])
 col2.metric("🏆 Mastered", stats["mastered"])
-col3.metric("✅ Session accuracy", accuracy_str)
+col3.metric("⏭️ Scheduled ahead", stats["due_tomorrow_or_later"])
+col4.metric("✅ Session accuracy", accuracy_str)
 
 st.divider()
 
@@ -68,17 +71,20 @@ filter_options = ["All types"] + [
     f"{et} ({cnt} due)" for et, cnt in sorted(due_counts.items())
 ]
 
-# Detect filter change to reset deck
-prev_filter = st.session_state.get("selected_filter", "All types")
+
+def _on_filter_change() -> None:
+    """Reset deck state whenever the filter selectbox changes."""
+    for key in ("review_cards", "review_index", "card_flipped"):
+        if key in st.session_state:
+            del st.session_state[key]
+
+
 selected_filter = st.selectbox(
     "Filter by error type",
     options=filter_options,
     key="selected_filter",
+    on_change=_on_filter_change,
 )
-if selected_filter != prev_filter:
-    for key in ("review_cards", "review_index", "card_flipped"):
-        if key in st.session_state:
-            del st.session_state[key]
 
 # ─────────────────────────────────────────────────────────────────
 # Load cards based on filter
@@ -139,6 +145,7 @@ elif review_index >= len(review_cards):
     if st.button("Reload deck", key="reload_btn"):
         st.session_state.got_it_count = 0
         st.session_state.try_again_count = 0
+        st.session_state.streak_updated = False
         for key in ("review_cards", "review_index", "card_flipped"):
             if key in st.session_state:
                 del st.session_state[key]
@@ -171,6 +178,9 @@ else:
                 st.session_state.got_it_count += 1
                 st.session_state.review_index += 1
                 st.session_state.card_flipped = False
+                if not st.session_state.streak_updated:
+                    db.update_streak()
+                    st.session_state.streak_updated = True
                 st.rerun()
         with col_try:
             if st.button("❌ Try again", key="try_again_btn", use_container_width=True):
@@ -178,6 +188,9 @@ else:
                 st.session_state.try_again_count += 1
                 st.session_state.review_index += 1
                 st.session_state.card_flipped = False
+                if not st.session_state.streak_updated:
+                    db.update_streak()
+                    st.session_state.streak_updated = True
                 st.rerun()
 
 # ─────────────────────────────────────────────────────────────────

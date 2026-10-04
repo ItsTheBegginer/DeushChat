@@ -273,7 +273,7 @@ def get_due_counts_by_type() -> dict:
 
 
 def get_card_stats() -> dict:
-    """Return total, mastered, and total_reviewed_today card counts."""
+    """Return total, mastered, and due_tomorrow_or_later card counts."""
     _ensure_dir()
     today = date.today().isoformat()
     with sqlite3.connect(DB_PATH) as conn:
@@ -285,17 +285,17 @@ def get_card_stats() -> dict:
         )
         mastered = cur.fetchone()[0]
 
-        # Cards reviewed today have next_review > today (rescheduled into the future)
+        # Cards with next_review past today have already been reviewed and rescheduled
         cur = conn.execute(
             "SELECT COUNT(*) FROM cards WHERE next_review > ?",
             (today,),
         )
-        total_reviewed_today = cur.fetchone()[0]
+        due_tomorrow_or_later = cur.fetchone()[0]
 
     return {
         "total": total,
         "mastered": mastered,
-        "total_reviewed_today": total_reviewed_today,
+        "due_tomorrow_or_later": due_tomorrow_or_later,
     }
 
 
