@@ -1,0 +1,9 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    "Filter reset sequencing (brittle) — The prev_filter / selected_filter comparison depends on Streamlit writing widget keys during rendering, not before. Replace with an on_change callback on the selectbox to make the reset deterministic and upgrade-safe.",
+    "total_reviewed_today unused and misleadingly named — get_card_stats returns this field but the page never reads it. The SQL (next_review > today) counts rescheduled cards, not cards reviewed today. Either remove the field or surface it in the UI with an accurate label.",
+    "Partial session earns no streak credit — update_streak() is gated on completing every due card. A user who reviews half the deck and closes the tab gets no credit. Move the streak update to trigger on the first card review of the day instead."
+  ],
+  "reviewDoc": "/Users/family/Documents/Deushchat/.agents/tasks/deck-review.md"
+}
